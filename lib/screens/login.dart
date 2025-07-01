@@ -190,7 +190,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).colorScheme.secondary,
                     ),
-                    child: Text('Daftar'),
+                    child: Text(
+                      'Daftar',
+                      style: TextStyle(color: Colors.white),
+                    ),
                   ),
                 ),
               ],

@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'home.dart';
 import 'live_stream.dart';
 import 'host_profile.dart';
+import 'leaderboard.dart';
+import 'wallet.dart';
 import '../services/api_service.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:camera/camera.dart';
 
 class MainHomeScreen extends StatefulWidget {
   const MainHomeScreen({super.key});
@@ -21,7 +24,13 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
   @override
   void initState() {
     super.initState();
-    _pages = [HomeScreen(), LiveStreamStartScreen(), UserProfileScreen()];
+    _pages = [
+      HomeScreen(),
+      LeaderboardScreen(),
+      LiveStreamStartScreen(),
+      WalletScreen(),
+      UserProfileScreen(),
+    ];
   }
 
   void _onItemTapped(int index) {
@@ -37,11 +46,24 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
+        backgroundColor: Colors.white,
+        selectedItemColor: Colors.blueAccent,
+        unselectedItemColor: Colors.grey,
+        showUnselectedLabels: true,
+        type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(
+            icon: Icon(Icons.emoji_events),
+            label: 'Rank',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.videocam),
             label: 'Live Streaming',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.account_balance_wallet),
+            label: 'Wallet',
           ),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
@@ -62,6 +84,9 @@ class _LiveStreamStartScreenState extends State<LiveStreamStartScreen> {
   bool _micPermissionGranted = false;
   bool _isStreaming = false;
 
+  CameraController? _cameraController;
+  List<CameraDescription>? _cameras;
+
   Future<void> _requestPermissions() async {
     final cameraStatus = await Permission.camera.request();
     final micStatus = await Permission.microphone.request();
@@ -72,8 +97,32 @@ class _LiveStreamStartScreenState extends State<LiveStreamStartScreen> {
     });
   }
 
-  void _startStreaming() {
+  Future<void> _initializeCamera() async {
+    _cameras = await availableCameras();
+    if (_cameras != null && _cameras!.isNotEmpty) {
+      // Select front camera
+      CameraDescription? frontCamera;
+      for (var camera in _cameras!) {
+        if (camera.lensDirection == CameraLensDirection.front) {
+          frontCamera = camera;
+          break;
+        }
+      }
+      final selectedCamera = frontCamera ?? _cameras![0];
+      _cameraController = CameraController(
+        selectedCamera,
+        ResolutionPreset.max, // Use max resolution for full screen
+      );
+      await _cameraController!.initialize();
+      if (mounted) {
+        setState(() {});
+      }
+    }
+  }
+
+  void _startStreaming() async {
     if (_cameraPermissionGranted && _micPermissionGranted) {
+      await _initializeCamera();
       setState(() {
         _isStreaming = true;
       });
@@ -87,9 +136,17 @@ class _LiveStreamStartScreenState extends State<LiveStreamStartScreen> {
   }
 
   void _stopStreaming() {
+    _cameraController?.dispose();
+    _cameraController = null;
     setState(() {
       _isStreaming = false;
     });
+  }
+
+  @override
+  void dispose() {
+    _cameraController?.dispose();
+    super.dispose();
   }
 
   @override
@@ -107,17 +164,21 @@ class _LiveStreamStartScreenState extends State<LiveStreamStartScreen> {
             ? Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    color: Colors.black,
-                    height: 400,
-                    width: 300,
-                    child: Center(
-                      child: Text(
-                        'Camera Preview Placeholder',
-                        style: TextStyle(color: Colors.white, fontSize: 18),
-                      ),
-                    ),
-                  ),
+                  _cameraController != null &&
+                          _cameraController!.value.isInitialized
+                      ? Expanded(child: CameraPreview(_cameraController!))
+                      : Container(
+                          color: Colors.black,
+                          child: Center(
+                            child: Text(
+                              'Initializing camera...',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ),
+                        ),
                   SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: _stopStreaming,

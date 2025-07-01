@@ -148,7 +148,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               Colors.white,
                             ),
                           )
-                        : Text('Daftar'),
+                        : Text('Daftar', style: TextStyle(color: Colors.white)),
                   ),
                 ),
               ],

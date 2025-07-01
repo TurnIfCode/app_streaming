@@ -20,16 +20,22 @@ class ApiService {
       id: 'host1',
       name: 'Host A',
       description: 'Live streaming gaming and chat',
+      imageUrl: 'https://example.com/images/host1.jpg',
+      viewersCount: 569,
     ),
     Host(
       id: 'host2',
       name: 'Host B',
       description: 'Music and entertainment live',
+      imageUrl: 'https://example.com/images/host2.jpg',
+      viewersCount: 128,
     ),
     Host(
       id: 'host3',
       name: 'Host C',
       description: 'Travel and lifestyle streaming',
+      imageUrl: 'https://example.com/images/host3.jpg',
+      viewersCount: 100,
     ),
   ];
 

@@ -10,6 +10,8 @@ class Host {
   final String id;
   final String name;
   final String description;
+  final String imageUrl;
+  final int viewersCount;
   int coinsReceived;
   int giftsReceived;
 
@@ -17,6 +19,8 @@ class Host {
     required this.id,
     required this.name,
     required this.description,
+    required this.imageUrl,
+    required this.viewersCount,
     this.coinsReceived = 0,
     this.giftsReceived = 0,
   });
