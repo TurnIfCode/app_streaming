@@ -17,21 +17,21 @@ class ApiService {
 
   final List<Host> _hosts = [
     Host(
-      id: 'host1',
+      id: 'host1@example.com',
       name: 'Host A',
       description: 'Live streaming gaming and chat',
       imageUrl: 'https://example.com/images/host1.jpg',
       viewersCount: 569,
     ),
     Host(
-      id: 'host2',
+      id: 'host2@example.com',
       name: 'Host B',
       description: 'Music and entertainment live',
       imageUrl: 'https://example.com/images/host2.jpg',
       viewersCount: 128,
     ),
     Host(
-      id: 'host3',
+      id: 'host3@example.com',
       name: 'Host C',
       description: 'Travel and lifestyle streaming',
       imageUrl: 'https://example.com/images/host3.jpg',

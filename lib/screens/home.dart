@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/models.dart';
 import 'live_stream.dart';
+import 'live_stream_watch.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -45,9 +46,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => LiveStreamScreen(
-                        hostId: host.id,
-                        hostName: host.name,
+                      builder: (_) => LiveStreamWatchScreen(
+                        liveID: host.id,
+                        userName: host.name,
+                        userId: host.id,
                       ),
                     ),
                   );

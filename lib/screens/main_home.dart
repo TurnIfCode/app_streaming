@@ -190,7 +190,26 @@ class _LiveStreamStartScreenState extends State<LiveStreamStartScreen> {
                 ],
               )
             : ElevatedButton(
-                onPressed: _startStreaming,
+                onPressed: () {
+                  final user = ApiService().getCurrentUser();
+                  if (user != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => LiveStreamScreen(
+                          liveID: user.id,
+                          userName: user.username,
+                          isHost: true,
+                          userId: user.id,
+                        ),
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('User not logged in')),
+                    );
+                  }
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.lightBlue,
                 ),

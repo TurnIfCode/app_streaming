@@ -155,13 +155,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton.icon(
-                    icon: Image.asset(
-                      'assets/google_logo.png',
-                      height: 24,
-                      width: 24,
-                    ),
-                    label: Text('Masuk dengan Google'),
+                  child: ElevatedButton(
+                    child: Text('Masuk dengan Google'),
                     onPressed: _loading ? null : _loginWithGoogle,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
