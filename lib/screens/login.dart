@@ -25,11 +25,22 @@ class _LoginScreenState extends State<LoginScreen> {
         _loading = true;
       });
       try {
-        await _apiService.login(_userInput);
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => MainHomeScreen()),
-        );
+        final result = await _apiService.login(_userInput, _password);
+        if (result['statusCode'] == 200 && result['success'] == true) {
+          // Save token is already done in ApiService.login
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => MainHomeScreen()),
+          );
+        } else if (result['statusCode'] == 400 && result['success'] == false) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(result['message'])));
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Terjadi kesalahan. Silakan coba lagi.')),
+          );
+        }
       } catch (e) {
         ScaffoldMessenger.of(
           context,
@@ -38,6 +49,24 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() {
           _loading = false;
         });
+      }
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _checkExistingToken();
+  }
+
+  void _checkExistingToken() async {
+    final token = await _apiService.getToken();
+    if (token != null && token.isNotEmpty) {
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => MainHomeScreen()),
+        );
       }
     }
   }
@@ -88,19 +117,12 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 TextFormField(
                   decoration: InputDecoration(
-                    labelText: 'Telepon atau Email',
+                    labelText: 'Username',
                     border: OutlineInputBorder(),
                   ),
-                  keyboardType: TextInputType.emailAddress,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Mohon masukkan telepon atau email';
-                    }
-                    if (!RegExp(
-                          r'^[\w\.\-]+@[\w\-]+\.[a-zA-Z]{2,4}$',
-                        ).hasMatch(value) &&
-                        !RegExp(r'^\+?[0-9]{7,15}$').hasMatch(value)) {
-                      return 'Masukkan nomor telepon atau email yang valid';
+                      return 'Mohon masukkan username';
                     }
                     return null;
                   },

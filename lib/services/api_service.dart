@@ -1,10 +1,20 @@
 import 'dart:async';
+import 'dart:io';
+
 import '../models/models.dart';
+import '../config.dart';
+
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
   ApiService._internal();
+
+  // Example usage of default API domain
+  final String _baseUrl = Config.apiBaseUrl;
 
   int _idCounter = 0;
 
@@ -62,11 +72,100 @@ class ApiService {
 
   final List<Transaction> _transactions = [];
 
-  Future<User> login(String username) async {
-    // Simulate API delay
-    await Future.delayed(Duration(seconds: 1));
-    _currentUser = User(id: _generateId(), username: username, coins: 0);
-    return _currentUser!;
+  Future<Map<String, dynamic>> login(String username, String password) async {
+    String baseUrl = _baseUrl.endsWith('/')
+        ? _baseUrl.substring(0, _baseUrl.length - 1)
+        : _baseUrl;
+    final url = Uri.parse('$baseUrl/api/login');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': ''},
+      body: jsonEncode({'username': username, 'password': password}),
+    );
+
+    final Map<String, dynamic> responseData = jsonDecode(response.body);
+
+    if (response.statusCode == 200) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('jwt_token', responseData['token']);
+      await prefs.setString('user_id', responseData['user']['id']);
+      _currentUser = User.fromJson(responseData['user']);
+      return {
+        'statusCode': response.statusCode,
+        'success': true,
+        'message': responseData['message'],
+        'user': _currentUser,
+        'token': responseData['token'],
+      };
+    } else if (response.statusCode == 400) {
+      return {
+        'statusCode': response.statusCode,
+        'success': false,
+        'message': responseData['message'],
+      };
+    } else {
+      return {
+        'statusCode': response.statusCode,
+        'success': false,
+        'message': 'Terjadi kesalahan pada server',
+      };
+    }
+  }
+
+  Future<String?> getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('jwt_token');
+  }
+
+  Future<String?> getUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('user_id');
+  }
+
+  Future<void> clearToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('jwt_token');
+    await prefs.remove('user_id');
+  }
+
+  Future<Map<String, dynamic>> register({
+    required String username,
+    required String name,
+    required String email,
+    required String phoneNumber,
+    required String password,
+  }) async {
+    // Remove trailing slash from _baseUrl if present
+    String baseUrl = _baseUrl.endsWith('/')
+        ? _baseUrl.substring(0, _baseUrl.length - 1)
+        : _baseUrl;
+    final url = Uri.parse('$baseUrl/api/register');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'username': username,
+        'name': name,
+        'email': email,
+        'phone_number': phoneNumber,
+        'password': password,
+      }),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 400) {
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+      return {
+        'statusCode': response.statusCode,
+        'success': responseData['success'],
+        'message': responseData['message'],
+      };
+    } else {
+      return {
+        'statusCode': response.statusCode,
+        'success': false,
+        'message': 'Terjadi kesalahan pada server',
+      };
+    }
   }
 
   Future<bool> verifyDeposit(int amount) async {
@@ -146,7 +245,18 @@ class ApiService {
     // Create dummy users for demonstration
     List<User> users = [];
     userSpent.forEach((userId, spent) {
-      users.add(User(id: userId, username: 'User $userId', coins: 0));
+      users.add(
+        User(
+          id: userId,
+          username: 'User $userId',
+          name: '',
+          email: '',
+          phoneNumber: '',
+          isHost: false,
+          coins: 0,
+          userPhoto: null,
+        ),
+      );
     });
     users.sort(
       (a, b) => (userSpent[b.id] ?? 0).compareTo(userSpent[a.id] ?? 0),
@@ -164,5 +274,124 @@ class ApiService {
 
   List<Transaction> getTransactions() {
     return _transactions;
+  }
+
+  Future<Map<String, dynamic>> fetchProfile() async {
+    String baseUrl = _baseUrl.endsWith('/')
+        ? _baseUrl.substring(0, _baseUrl.length - 1)
+        : _baseUrl;
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token');
+    final userId = prefs.getString('user_id');
+    if (token == null || token.isEmpty || userId == null || userId.isEmpty) {
+      return {
+        'statusCode': 401,
+        'success': false,
+        'message': 'Unauthenticated.',
+      };
+    }
+    final url = Uri.parse('$baseUrl/api/profile/$userId');
+    final response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    final Map<String, dynamic> responseData = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      _currentUser = User.fromJson(responseData['data']);
+      return {
+        'statusCode': response.statusCode,
+        'success': true,
+        'message': responseData['message'] ?? 'Success',
+        'data': responseData['data'],
+      };
+    } else if (response.statusCode == 401) {
+      return {
+        'statusCode': response.statusCode,
+        'success': false,
+        'message': responseData['message'] ?? 'Unauthenticated.',
+      };
+    } else {
+      return {
+        'statusCode': response.statusCode,
+        'success': false,
+        'message': 'Terjadi kesalahan pada server',
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> uploadProfilePhoto(File imageFile) async {
+    String baseUrl = _baseUrl.endsWith('/')
+        ? _baseUrl.substring(0, _baseUrl.length - 1)
+        : _baseUrl;
+    final url = Uri.parse('$baseUrl/api/profile/upload-photo');
+    final token = await getToken();
+    if (token == null) {
+      return {'success': false, 'message': 'User not authenticated'};
+    }
+    try {
+      var request = http.MultipartRequest('POST', url);
+      request.headers['Authorization'] = 'Bearer $token';
+      request.files.add(
+        await http.MultipartFile.fromPath('photo', imageFile.path),
+      );
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Upload successful',
+          'data': responseData['data'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': 'Upload failed with status code ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Upload failed: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> uploadProfilePhotoBase64(
+    String base64Image,
+  ) async {
+    String baseUrl = _baseUrl.endsWith('/')
+        ? _baseUrl.substring(0, _baseUrl.length - 1)
+        : _baseUrl;
+    final url = Uri.parse('$baseUrl/api/change-photo');
+    final token = await getToken();
+    if (token == null) {
+      return {'success': false, 'message': 'User not authenticated'};
+    }
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'image': base64Image}),
+      );
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        return {
+          'success': responseData['success'] ?? true,
+          'message': responseData['message'] ?? 'Upload successful',
+          'data': responseData['data'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': 'Upload failed with status code ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Upload failed: $e'};
+    }
   }
 }

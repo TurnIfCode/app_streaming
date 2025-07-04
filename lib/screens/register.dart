@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
 import 'otp.dart';
+import 'dart:developer';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -10,23 +12,47 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
+  String _username = '';
   String _name = '';
   String _email = '';
   String _phone = '';
   String _password = '';
   bool _loading = false;
 
-  void _register() {
+  void _register() async {
     if (_formKey.currentState!.validate()) {
-      // Implement registration logic here
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Pendaftaran berhasil dikirim')));
-      // Navigate to OTP screen after successful registration
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const OtpScreen()),
+      setState(() {
+        _loading = true;
+      });
+      final apiService = ApiService();
+      print('data: $apiService');
+      final result = await apiService.register(
+        username: _username,
+        name: _name,
+        email: _email,
+        phoneNumber: _phone,
+        password: _password,
       );
+      setState(() {
+        _loading = false;
+      });
+      if (result['statusCode'] == 200 && result['success'] == true) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(result['message'])));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const OtpScreen()),
+        );
+      } else if (result['statusCode'] == 400 && result['success'] == false) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(result['message'])));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Terjadi kesalahan. Silakan coba lagi.')),
+        );
+      }
     }
   }
 
@@ -46,6 +72,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                TextFormField(
+                  decoration: InputDecoration(
+                    labelText: 'Username',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Mohon masukkan username Anda';
+                    }
+                    return null;
+                  },
+                  onChanged: (value) {
+                    setState(() {
+                      _username = value;
+                    });
+                  },
+                ),
+                SizedBox(height: 12),
                 TextFormField(
                   decoration: InputDecoration(
                     labelText: 'Nama',
