@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:zego_uikit_prebuilt_live_streaming/zego_uikit_prebuilt_live_streaming.dart';
-import '../config_zego.dart';
+
+import 'package:app_streaming/config_zego.dart';
 
 class LiveStreamWatchScreen extends StatelessWidget {
   final String liveID;
@@ -8,25 +9,24 @@ class LiveStreamWatchScreen extends StatelessWidget {
   final String userId;
 
   const LiveStreamWatchScreen({
-    super.key,
+    Key? key,
     required this.liveID,
     required this.userName,
     required this.userId,
-  });
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('Watch Live Stream')),
-      body: SafeArea(
-        child: ZegoUIKitPrebuiltLiveStreaming(
-          appID: ConfigZego.appId,
-          appSign: ConfigZego.appSign,
-          userID: userId,
-          userName: userName,
-          liveID: liveID,
-          config: ZegoUIKitPrebuiltLiveStreamingConfig.audience(),
-        ),
+    return SafeArea(
+      child: ZegoUIKitPrebuiltLiveStreaming(
+        appID: ConfigZego
+            .appId, // Fill in the appID that you get from ZEGOCLOUD Admin Console.
+        appSign: ConfigZego
+            .appSign, // Fill in the appSign that you get from ZEGOCLOUD Admin Console.
+        userID: userId,
+        userName: userName,
+        liveID: liveID,
+        config: ZegoUIKitPrebuiltLiveStreamingConfig.audience(),
       ),
     );
   }

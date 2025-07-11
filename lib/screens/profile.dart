@@ -31,8 +31,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
     final result = await _apiService.fetchProfile();
     if (result['statusCode'] == 200 && result['success'] == true) {
+      final user = await _apiService.getCurrentUser();
       setState(() {
-        _user = _apiService.getCurrentUser();
+        _user = user;
         _loading = false;
       });
     } else if (result['statusCode'] == 401) {

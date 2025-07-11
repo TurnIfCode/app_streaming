@@ -298,21 +298,41 @@ class ApiService {
         'Authorization': 'Bearer $token',
       },
     );
-    final Map<String, dynamic> responseData = jsonDecode(response.body);
+
     if (response.statusCode == 200) {
-      _currentUser = User.fromJson(responseData['data']);
-      return {
-        'statusCode': response.statusCode,
-        'success': true,
-        'message': responseData['message'] ?? 'Success',
-        'data': responseData['data'],
-      };
+      if (response.headers['content-type']?.contains('application/json') ??
+          false) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        _currentUser = User.fromJson(responseData['data']);
+        return {
+          'statusCode': response.statusCode,
+          'success': true,
+          'message': responseData['message'] ?? 'Success',
+          'data': responseData['data'],
+        };
+      } else {
+        return {
+          'statusCode': response.statusCode,
+          'success': false,
+          'message': 'Unexpected response format',
+        };
+      }
     } else if (response.statusCode == 401) {
-      return {
-        'statusCode': response.statusCode,
-        'success': false,
-        'message': responseData['message'] ?? 'Unauthenticated.',
-      };
+      if (response.headers['content-type']?.contains('application/json') ??
+          false) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        return {
+          'statusCode': response.statusCode,
+          'success': false,
+          'message': responseData['message'] ?? 'Unauthenticated.',
+        };
+      } else {
+        return {
+          'statusCode': response.statusCode,
+          'success': false,
+          'message': 'Unauthenticated.',
+        };
+      }
     } else {
       return {
         'statusCode': response.statusCode,
@@ -392,6 +412,133 @@ class ApiService {
       }
     } catch (e) {
       return {'success': false, 'message': 'Upload failed: $e'};
+    }
+  }
+
+  Future<List<Coin>> fetchCoins() async {
+    String baseUrl = _baseUrl.endsWith('/')
+        ? _baseUrl.substring(0, _baseUrl.length - 1)
+        : _baseUrl;
+    final url = Uri.parse('$baseUrl/api/coin');
+    final response = await http.get(
+      url,
+      headers: {'accept': 'application/json', 'X-CSRF-TOKEN': ''},
+    );
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+      if (responseData['success'] == true && responseData['data'] != null) {
+        final List<dynamic> data = responseData['data'];
+        return data.map((json) => Coin.fromJson(json)).toList();
+      } else {
+        throw Exception('Failed to load coins: ${responseData['message']}');
+      }
+    } else {
+      throw Exception('Failed to load coins: HTTP ${response.statusCode}');
+    }
+  }
+
+  Future<Map<String, dynamic>> fetchWallet(String userId, String token) async {
+    String baseUrl = _baseUrl.endsWith('/')
+        ? _baseUrl.substring(0, _baseUrl.length - 1)
+        : _baseUrl;
+    final url = Uri.parse('$baseUrl/api/wallet/$userId');
+    final response = await http.get(
+      url,
+      headers: {
+        'accept': 'application/json',
+        'Authorization': 'Bearer $token',
+        'X-CSRF-TOKEN': '',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+      return responseData;
+    } else {
+      throw Exception('Failed to load wallet: HTTP ${response.statusCode}');
+    }
+  }
+
+  Future<Map<String, dynamic>> startLiveStream(String liveId) async {
+    String baseUrl = _baseUrl.endsWith('/')
+        ? _baseUrl.substring(0, _baseUrl.length - 1)
+        : _baseUrl;
+    final url = Uri.parse('$baseUrl/api/live-stream/start');
+    final token = await getToken();
+
+    print('INI DIA TOKEN NYA : ${token}');
+
+    if (token == null || token.isEmpty) {
+      return {
+        'statusCode': 401,
+        'success': false,
+        'message': 'Unauthorized: Token is null or empty',
+      };
+    }
+
+    final response = await http.post(
+      url,
+      headers: {
+        'accept': 'application/json',
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': '',
+      },
+      body: jsonEncode({'live_id': liveId}),
+    );
+
+    print('INI DIA RESPONSENYA TOL : ${response.body}');
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+      HostStream? hostStream;
+      if (responseData['success'] == true && responseData['data'] != null) {
+        hostStream = HostStream.fromJson(responseData['data']);
+      }
+      return {
+        'statusCode': response.statusCode,
+        'success': true,
+        'data': responseData,
+        'hostStream': hostStream,
+      };
+    } else {
+      return {
+        'statusCode': response.statusCode,
+        'success': false,
+        'message': 'Failed to start live stream',
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> endLiveStream(String liveId) async {
+    String baseUrl = _baseUrl.endsWith('/')
+        ? _baseUrl.substring(0, _baseUrl.length - 1)
+        : _baseUrl;
+    final url = Uri.parse('$baseUrl/live-stream/end');
+    final response = await http.post(
+      url,
+      headers: {
+        'accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': '',
+      },
+      body: jsonEncode({'live_id': liveId}),
+    );
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+      return {
+        'statusCode': response.statusCode,
+        'success': true,
+        'data': responseData,
+      };
+    } else {
+      return {
+        'statusCode': response.statusCode,
+        'success': false,
+        'message': 'Failed to end live stream',
+      };
     }
   }
 }

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import '../services/api_service.dart';
 import 'main_home.dart';
 import 'register.dart';
@@ -17,7 +16,6 @@ class _LoginScreenState extends State<LoginScreen> {
   String _password = '';
   bool _loading = false;
   final ApiService _apiService = ApiService();
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   void _login() async {
     if (_formKey.currentState!.validate()) {
@@ -75,28 +73,6 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() {
       _loading = true;
     });
-    try {
-      final GoogleSignInAccount? account = await _googleSignIn.signIn();
-      if (account != null) {
-        // You can add additional authentication logic here if needed
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => MainHomeScreen()),
-        );
-      } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Login Google dibatalkan')));
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Gagal login dengan Google: $e')));
-    } finally {
-      setState(() {
-        _loading = false;
-      });
-    }
   }
 
   @override

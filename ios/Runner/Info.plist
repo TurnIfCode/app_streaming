@@ -45,5 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>This app requires camera access to enable live streaming.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app requires microphone access to enable live streaming.</string>
 </dict>
 </plist>

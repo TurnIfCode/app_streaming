@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 import '../services/api_service.dart';
 import '../models/models.dart';
@@ -27,38 +28,91 @@ class _ProfilePhotoUploadScreenState extends State<ProfilePhotoUploadScreen> {
   User get _user => widget.user;
 
   Future<void> _pickImage(ImageSource source) async {
-    final pickedFile = await _picker.pickImage(source: source);
+    final XFile? pickedFile = await _picker.pickImage(source: source);
     if (pickedFile != null) {
+      File imageFile = File(pickedFile.path);
+      // Resize image immediately to ~5MB
+      imageFile = await _resizeImageTo5MB(imageFile);
       setState(() {
-        _imageFile = File(pickedFile.path);
+        _imageFile = imageFile;
       });
     }
   }
 
-  Future<void> _showPickOptionsDialog(BuildContext context) {
-    return showModalBottomSheet(
+  void _showPickOptionsDialog(BuildContext context) {
+    showDialog(
       context: context,
-      builder: (context) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              title: Text('Pilih dari album'),
-              onTap: () {
-                Navigator.of(context).pop();
-                _pickImage(ImageSource.gallery);
-              },
-            ),
-            ListTile(
-              title: Text('Ambil foto'),
-              onTap: () {
-                Navigator.of(context).pop();
-                _pickImage(ImageSource.camera);
-              },
-            ),
-          ],
-        ),
-      ),
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Pilih sumber foto'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(Icons.camera_alt),
+                title: Text('Kamera'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.photo_library),
+                title: Text('Galeri'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
+  }
+
+  Future<File> _resizeImageTo5MB(File file) async {
+    int quality = 90;
+    File? compressedFile = file;
+    int fileSize = await file.length();
+
+    while (fileSize > 5 * 1024 * 1024 && quality > 10) {
+      final targetPath = file.path.replaceFirst(
+        RegExp(r'\.(jpg|jpeg|png)$'),
+        '_resized.jpg',
+      );
+      final compressed =
+          await FlutterImageCompress.compressAndGetFile(
+                file.absolute.path,
+                targetPath,
+                quality: quality,
+                minWidth: 1000,
+                minHeight: 1000,
+              )
+              as File?;
+      if (compressed == null) break;
+      compressedFile = compressed;
+      fileSize = await compressedFile.length();
+      quality -= 10;
+    }
+    return compressedFile ?? file;
+  }
+
+  Future<File> _compressImage(File file) async {
+    final targetPath = file.path.replaceFirst(
+      RegExp(r'\.(jpg|jpeg|png)$'),
+      '_compressed.jpg',
+    );
+    final result =
+        await FlutterImageCompress.compressAndGetFile(
+              file.absolute.path,
+              targetPath,
+              quality: 85,
+              minWidth: 800,
+              minHeight: 800,
+            )
+            as File?;
+    return result ?? file;
   }
 
   Future<void> _uploadImage() async {
@@ -70,7 +124,25 @@ class _ProfilePhotoUploadScreenState extends State<ProfilePhotoUploadScreen> {
     });
 
     try {
-      final bytes = await _imageFile!.readAsBytes();
+      // Resize image if larger than 5MB
+      final int maxSizeInBytes = 5 * 1024 * 1024; // 5MB
+      File imageToUpload = _imageFile!;
+      int imageSize = await imageToUpload.length();
+
+      if (imageSize > maxSizeInBytes) {
+        imageToUpload = await _compressImage(imageToUpload);
+        imageSize = await imageToUpload.length();
+        if (imageSize > maxSizeInBytes) {
+          setState(() {
+            _loading = false;
+            _errorMessage =
+                'Ukuran foto masih lebih dari 5MB setelah kompresi.';
+          });
+          return;
+        }
+      }
+
+      final bytes = await imageToUpload.readAsBytes();
       final base64Image = base64Encode(bytes);
 
       final result = await _apiService.uploadProfilePhotoBase64(base64Image);

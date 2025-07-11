@@ -1,5 +1,5 @@
 class ConfigZego {
-  static int appId = 1114554874;
+  static int appId = 36313643;
   static String appSign =
-      'f8f4b8e22dadb281e56450a6ed89d67064a6a6ad522ce1e604bfedc889631d79';
+      'f18cf4284d607f0e8e652947e635753d416c548cffe8c982d9ed55dce335fa2e';
 }
